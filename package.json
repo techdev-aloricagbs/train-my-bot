@@ -2,28 +2,21 @@
   "name": "train-my-bot",
   "version": "1.0.0",
   "description": "Trains a specific bot by querying missed utterances and assign them to an existing intent.",
-  "main": "lib/cli.js",
+  "main": "bin/cli.js",
   "bin": {
     "train-bot": "bin/cli.js",
     "tb": "bin/cli.js"
   },
-  "scripts": {
-    "build": "npm run clean && babel src -d lib",
-    "clean": "rimraf lib"
-  },
   "author": "Apps Dev NodeJS team",
   "license": "MIT",
   "dependencies": {
-    "babel-register": "^6.26.0",
+    "asyncawait": "^1.0.6",
+    "aws-sdk": "^2.155.0",
     "chalk": "^2.3.0",
     "commander": "^2.11.0",
-    "didyoumean": "^1.2.1"
-  },
-  "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-eslint": "^8.0.2",
-    "babel-plugin-transform-class-properties": "^6.24.1",
-    "babel-plugin-transform-object-rest-spread": "^6.26.0",
-    "babel-preset-env": "^1.6.1"
+    "didyoumean": "^1.2.1",
+    "lodash": "^4.17.4",
+    "paws-sdk": "^1.0.5",
+    "string_score": "^0.1.22"
   }
 }
