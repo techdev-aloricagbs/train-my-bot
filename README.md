@@ -1,9 +1,11 @@
-Train My Bot
+# Train My Bot
 
 This is a cli tool to train your AWS Lex Bots using missed utterances
 
 
-Usage:
+## Usage
+
+This requires Node version 9.0.0 or higher
 
 Locally,
 
