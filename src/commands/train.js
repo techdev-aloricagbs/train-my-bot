@@ -1,3 +1,5 @@
+"use strict";
+
 require("string_score");
 const AWS = require('paws-sdk');
 const async = require('asyncawait/async');
@@ -35,7 +37,7 @@ const getMissingUtterances = async(function (botName) {
       botVersions: [
         '$LATEST'
       ],
-      statusType: 'Detected' // Change to Missed
+      statusType: 'Missed'
     };
     let lexService = new AWS.LexModelBuildingService();
     let response = await(lexService.getUtterancesView(params));
@@ -63,30 +65,66 @@ const getAllIntentsForBotWithUtterances = async(function (botName) {
         name: intent.intentName,
       }));
 
-      return {
-        name: intent.intentName,
-        utterances: response.data.sampleUtterances
-      }
+      return response.data;
     });
   } catch (error) {
     console.error(error.stack);
   }
 });
 
-const processUtterances = function(missingUtterances, intentsUtteranceMap){
+const processUtterances = async(function(missingUtterances, intentsUtteranceMap){
+  console.log('Processing utterances..');
   _.each(missingUtterances, (item) => {
     let utterance = item.utteranceString;
     _.each(intentsUtteranceMap, (intentData) => {
-      _.each(intentData.utterances, (intentUtterance) => {
+      let checksum = intentData.checksum;
+      _.each(intentData.sampleUtterances, (intentUtterance) => {
         let score = intentUtterance.score(utterance);
-        if (score >= 0.80) {
-          console.log('---Simulation Only---');
-          console.log(`Adding "${utterance}" to this intent: ${intentData.name}`)
+        if (score >= 0.80 && checksum === intentData.checksum) {
+          console.log('Adding utterance to intent..');
+          intentData.sampleUtterances.push(utterance);
+          delete intentData.lastUpdatedDate;
+          delete intentData.createdDate;
+          delete intentData.version;
+          let service = new AWS.LexModelBuildingService();
+          let response = await(service.putIntent(intentData));
+          checksum = response.data.checksum;
         }
       });
     });
   });
-};
+});
+
+const buildBot = async(function(botName) {
+  console.log('Building the bot..');
+  try {
+    let lexService = new AWS.LexModelBuildingService();
+    let response = await(lexService.getBot({
+      name: botName,
+      versionOrAlias: '$LATEST',
+    }));
+
+    let botData = response.data;
+    // Update all intents for now...
+    botData.intents = _.map(botData.intents, (intent) => {
+      return {
+        intentName: intent.intentName,
+        intentVersion: '$LATEST',
+      }
+    });
+    botData.processBehavior = 'BUILD';
+    delete botData.lastUpdatedDate;
+    delete botData.createdDate;
+    delete botData.version;
+    delete botData.status;
+    delete botData.failureReason;
+    await(lexService.putBot(botData));
+    console.log('Build finished..');
+  } catch (error) {
+    console.error(error.stack);
+  }
+
+});
 
 module.exports = async(function (botName, profile, region) {
   console.log(`Training ${botName}..`);
@@ -94,5 +132,7 @@ module.exports = async(function (botName, profile, region) {
   let missingUtterances = await(getMissingUtterances(botName));
   let intentsUtteranceMap = await(getAllIntentsForBotWithUtterances(botName));
 
-  processUtterances(missingUtterances, intentsUtteranceMap);
+  await(processUtterances(missingUtterances, intentsUtteranceMap));
+  await(buildBot(botName));
+  console.log('Training finish!');
 });
